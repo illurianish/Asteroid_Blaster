@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Asteroid Blaster - Space Defense</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            margin: 0;
+            padding: 10px;
+            background: linear-gradient(135deg, #000 0%, #001122 50%, #000 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        #gameContainer {
+            text-align: center;
+            padding: 10px;
+            width: 100%;
+            max-width: 900px;
+        }
+        
+        #gameCanvas {
+            border: 3px solid #00ffff;
+            border-radius: 10px;
+            background: #0a0a1e;
+            cursor: none;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+            width: 100%;
+            height: auto;
+            max-width: 800px;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #00ffff;
+            text-shadow: 0 0 20px #00ffff;
+            margin-bottom: 15px;
+            font-size: clamp(18px, 4vw, 28px);
+            letter-spacing: 1px;
+            padding: 0 10px;
+        }
+        
+        #instructions {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 0 10px;
+        }
+        
+        .control-info {
+            padding: 15px 10px;
+            background: linear-gradient(145deg, rgba(0, 255, 255, 0.1), rgba(0, 100, 100, 0.1));
+            border: 2px solid rgba(0, 255, 255, 0.3);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            text-align: center;
+            font-size: clamp(12px, 2.5vw, 14px);
+        }
+        
+        .control-info:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 255, 0.2);
+            border-color: rgba(0, 255, 255, 0.6);
+        }
+        
+        .control-info strong {
+            color: #00ffff;
+            font-size: clamp(14px, 3vw, 18px);
+            display: block;
+            margin-bottom: 8px;
+        }
+        
+        .restart-info {
+            margin-top: 20px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            font-size: clamp(12px, 2.5vw, 16px);
+        }
+        
+        .restart-info strong {
+            color: #ffff00;
+        }
+        
+        /* Mobile specific styles */
+        @media (max-width: 768px) {
+            body {
+                padding: 5px;
+            }
+            
+            #gameContainer {
+                padding: 5px;
+            }
+            
+            #gameCanvas {
+                border: 2px solid #00ffff;
+                border-radius: 8px;
+            }
+            
+            #instructions {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+                margin-top: 15px;
+            }
+            
+            .control-info {
+                padding: 10px 8px;
+            }
+            
+            h1 {
+                margin-bottom: 10px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            #instructions {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+            
+            .control-info {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <h1>🚀 ASTEROID BLASTER - SPACE DEFENSE 🚀</h1>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div id="instructions">
+            <div class="control-info">
+                <strong>🎯 MISSION</strong>
+                Survive 60 seconds!<br>
+                Defend Earth from<br>
+                asteroid bombardment
+            </div>
+            <div class="control-info">
+                <strong>🖱️ CONTROLS</strong>
+                Move mouse to aim<br>
+                Tap/Click to shoot<br>
+                energy bullets
+            </div>
+            <div class="control-info">
+                <strong>🏆 SCORING</strong>
+                200+ = Excellent!<br>
+                100+ = Good Job!<br>
+                Each asteroid = 10 pts
+            </div>
+            <div class="control-info">
+                <strong>⚠️ DANGER</strong>
+                Don't let 10 asteroids<br>
+                reach the bottom<br>
+                or it's game over!
+            </div>
+        </div>
+        
+        <div class="restart-info">
+            Press <strong>R</strong> to restart after game over
+        </div>
+    </div>
+
+    <script>
+        // Basic game setup stuff
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const W = 800;
+        const H = 600;
+        const fps = 60;
+        
+        // Scale factors for responsive canvas - initialize them here
+        let scaleX = 1;
+        let scaleY = 1;
+        
+        // Make canvas responsive
+        function resizeCanvas() {
+            const maxWidth = Math.min(800, window.innerWidth - 40);
+            const maxHeight = Math.min(600, window.innerHeight * 0.6);
+            
+            // Keep aspect ratio
+            const aspectRatio = 800 / 600;
+            let newWidth = maxWidth;
+            let newHeight = newWidth / aspectRatio;
+            
+            if (newHeight > maxHeight) {
+                newHeight = maxHeight;
+                newWidth = newHeight * aspectRatio;
+            }
+            
+            canvas.style.width = newWidth + 'px';
+            canvas.style.height = newHeight + 'px';
+            
+            // Update scale factors
+            scaleX = 800 / newWidth;
+            scaleY = 600 / newHeight;
+        }
+        
+        // just some colors i use
+        const colors = {
+            white: '#fff',
+            black: '#000',
+            red: '#f00',
+            blue: '#00f', 
+            green: '#0f0',
+            gray: '#808080',
+            yellow: '#ff0',
+            darkBlue: '#0a0a1e',
+            orange: '#ffa500',
+            cyan: '#0ff',
+            purple: '#800080',
+            darkGray: '#404040',
+            lightGray: '#c0c0c0'
+        };
+
+        let mx = 0, my = 0; // mouse coords
+        
+        class Star {
+            constructor() {
+                this.x = Math.random() * W;
+                this.y = Math.random() * H;
+                this.bright = Math.floor(Math.random() * 205) + 50;
+                this.sz = Math.random() < 0.7 ? 1 : 2;
+            }
+            
+            draw() {
+                const b = this.bright.toString(16).padStart(2, '0');
+                ctx.fillStyle = `#${b}${b}${b}`;
+                if (this.sz === 1) {
+                    ctx.fillRect(this.x, this.y, 1, 1);
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.sz, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        class Turret {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.angle = 0;
+                this.len = 50;
+                this.w = 12;
+            }
+            
+            update(mousePos) {
+                let dx = mousePos.x - this.x;
+                let dy = mousePos.y - this.y;
+                this.angle = Math.atan2(dy, dx);
+            }
+            
+            draw() {
+                // turret base - make it look cool
+                ctx.fillStyle = colors.darkGray;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 25, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = colors.lightGray;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 20, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = colors.darkGray;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 15, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // barrel
+                let endX = this.x + Math.cos(this.angle) * this.len;
+                let endY = this.y + Math.sin(this.angle) * this.len;
+                
+                ctx.strokeStyle = colors.lightGray;
+                ctx.lineWidth = this.w;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(endX, endY);
+                ctx.stroke();
+                
+                // glow effect
+                ctx.strokeStyle = colors.cyan;
+                ctx.lineWidth = this.w - 4;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(endX, endY);
+                ctx.stroke();
+                
+                // tip glow
+                ctx.fillStyle = colors.cyan;
+                ctx.beginPath();
+                ctx.arc(endX, endY, 6, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = colors.white;
+                ctx.beginPath();
+                ctx.arc(endX, endY, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            getEnd() {
+                return {
+                    x: this.x + Math.cos(this.angle) * this.len,
+                    y: this.y + Math.sin(this.angle) * this.len
+                };
+            }
+        }
+
+        class Bullet {
+            constructor(x, y, tx, ty) {
+                this.x = x;
+                this.y = y;
+                this.spd = 12;
+                this.r = 4;
+                this.trail = [];
+                
+                let dx = tx - x;
+                let dy = ty - y;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist > 0) {
+                    this.dx = (dx / dist) * this.spd;
+                    this.dy = (dy / dist) * this.spd;
+                } else {
+                    this.dx = 0;
+                    this.dy = 0;
+                }
+            }
+            
+            update() {
+                this.trail.push({x: this.x, y: this.y});
+                if (this.trail.length > 5) this.trail.shift();
+                
+                this.x += this.dx;
+                this.y += this.dy;
+            }
+            
+            draw() {
+                // trail effect looks cool
+                this.trail.forEach((pos, i) => {
+                    let alpha = (i + 1) * 0.2;
+                    ctx.fillStyle = `rgba(0, 255, 255, ${alpha})`;
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, Math.max(1, this.r - 2), 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                
+                ctx.fillStyle = colors.white;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = colors.cyan;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.r - 1, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            offScreen() {
+                return this.x < -20 || this.x > W + 20 || this.y < -20 || this.y > H + 20;
+            }
+        }
+
+        class Rock { // i like calling them rocks instead of asteroids lol
+            constructor() {
+                this.x = Math.random() * (W - 60) + 30;
+                this.y = -30;
+                this.spd = Math.random() * 1.5 + 1.0; // made easier
+                this.r = Math.random() * 20 + 15;
+                this.rot = 0;
+                this.rotSpd = (Math.random() - 0.5) * 6;
+                
+                // make it look rocky
+                this.pts = [];
+                let numPts = Math.floor(Math.random() * 5) + 8;
+                for (let i = 0; i < numPts; i++) {
+                    let angle = (2 * Math.PI * i) / numPts;
+                    let rVar = this.r + (Math.random() - 0.5) * 16;
+                    let x = Math.cos(angle) * rVar;
+                    let y = Math.sin(angle) * rVar;
+                    this.pts.push({x, y});
+                }
+                
+                let rockColors = ['#8B4513', '#A0522D', '#696969', '#778899'];
+                this.color = rockColors[Math.floor(Math.random() * rockColors.length)];
+            }
+            
+            update() {
+                this.y += this.spd;
+                this.rot += this.rotSpd;
+            }
+            
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rot * Math.PI / 180);
+                
+                ctx.fillStyle = this.color;
+                ctx.strokeStyle = colors.black;
+                ctx.lineWidth = 2;
+                
+                ctx.beginPath();
+                if (this.pts.length > 0) {
+                    ctx.moveTo(this.pts[0].x, this.pts[0].y);
+                    for (let i = 1; i < this.pts.length; i++) {
+                        ctx.lineTo(this.pts[i].x, this.pts[i].y);
+                    }
+                    ctx.closePath();
+                }
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+            
+            offScreen() {
+                return this.y > H + 50;
+            }
+        }
+
+        class Game {
+            constructor() {
+                this.stars = [];
+                for (let i = 0; i < 200; i++) {
+                    this.stars.push(new Star());
+                }
+                
+                this.turret = new Turret(W / 2, H - 50);
+                this.bullets = [];
+                this.rocks = []; // using rocks instead of asteroids
+                
+                this.score = 0;
+                this.missed = 0;
+                this.maxMissed = 10;
+                this.gameOver = false;
+                this.timeUp = false;
+                
+                this.timeLeft = 60.0;
+                
+                this.spawnTimer = 0;
+                this.spawnDelay = 120; // easier now
+                
+                this.init();
+            }
+            
+            init() {
+                // Mouse events
+                canvas.addEventListener('mousemove', (e) => {
+                    this.updateMousePos(e);
+                });
+                
+                canvas.addEventListener('click', (e) => {
+                    if (!this.gameOver) {
+                        this.shootAtEvent(e);
+                    }
+                });
+                
+                // Touch events for mobile
+                canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    if (!this.gameOver && e.touches.length > 0) {
+                        this.updateTouchPos(e.touches[0]);
+                        this.shootAtTouch(e.touches[0]);
+                    }
+                });
+                
+                canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    if (e.touches.length > 0) {
+                        this.updateTouchPos(e.touches[0]);
+                    }
+                });
+                
+                canvas.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                });
+                
+                document.addEventListener('keydown', (e) => {
+                    if (e.key.toLowerCase() === 'r' && this.gameOver) {
+                        this.restart();
+                    }
+                });
+                
+                // Handle window resize
+                window.addEventListener('resize', resizeCanvas);
+            }
+            
+            updateMousePos(e) {
+                let rect = canvas.getBoundingClientRect();
+                mx = (e.clientX - rect.left) * scaleX;
+                my = (e.clientY - rect.top) * scaleY;
+            }
+            
+            updateTouchPos(touch) {
+                let rect = canvas.getBoundingClientRect();
+                mx = (touch.clientX - rect.left) * scaleX;
+                my = (touch.clientY - rect.top) * scaleY;
+            }
+            
+            shootAtEvent(e) {
+                let rect = canvas.getBoundingClientRect();
+                let tx = (e.clientX - rect.left) * scaleX;
+                let ty = (e.clientY - rect.top) * scaleY;
+                this.shoot(tx, ty);
+            }
+            
+            shootAtTouch(touch) {
+                let rect = canvas.getBoundingClientRect();
+                let tx = (touch.clientX - rect.left) * scaleX;
+                let ty = (touch.clientY - rect.top) * scaleY;
+                this.shoot(tx, ty);
+            }
+            
+            shoot(tx, ty) {
+                let end = this.turret.getEnd();
+                this.bullets.push(new Bullet(end.x, end.y, tx, ty));
+            }
+            
+            spawnRock() {
+                if (this.spawnTimer <= 0) {
+                    this.rocks.push(new Rock());
+                    this.spawnTimer = this.spawnDelay;
+                    if (this.spawnDelay > 50) {
+                        this.spawnDelay -= 0.2; // slower difficulty ramp
+                    }
+                } else {
+                    this.spawnTimer--;
+                }
+            }
+            
+            update() {
+                if (this.gameOver) return;
+                
+                // tick down timer
+                this.timeLeft -= 1 / fps;
+                if (this.timeLeft <= 0) {
+                    this.timeLeft = 0;
+                    this.gameOver = true;
+                    this.timeUp = true;
+                }
+                
+                this.turret.update({x: mx, y: my});
+                this.spawnRock();
+                
+                // update bullets
+                this.bullets = this.bullets.filter(b => {
+                    b.update();
+                    return !b.offScreen();
+                });
+                
+                // update rocks
+                this.rocks = this.rocks.filter(r => {
+                    r.update();
+                    if (r.offScreen()) {
+                        this.missed++;
+                        if (this.missed >= this.maxMissed) {
+                            this.gameOver = true;
+                        }
+                        return false;
+                    }
+                    return true;
+                });
+                
+                this.checkHits();
+            }
+            
+            checkHits() {
+                let bulletsToKill = [];
+                let rocksToKill = [];
+                
+                this.bullets.forEach((b, bi) => {
+                    this.rocks.forEach((r, ri) => {
+                        let dx = b.x - r.x;
+                        let dy = b.y - r.y;
+                        let distSq = dx*dx + dy*dy; // faster without sqrt
+                        let hitDist = (b.r + r.r) * (b.r + r.r);
+                        
+                        if (distSq < hitDist) {
+                            if (!bulletsToKill.includes(bi)) bulletsToKill.push(bi);
+                            if (!rocksToKill.includes(ri)) {
+                                rocksToKill.push(ri);
+                                this.score += 10;
+                            }
+                        }
+                    });
+                });
+                
+                // clean up hits
+                bulletsToKill.sort((a, b) => b - a).forEach(i => this.bullets.splice(i, 1));
+                rocksToKill.sort((a, b) => b - a).forEach(i => this.rocks.splice(i, 1));
+            }
+            
+            draw() {
+                ctx.fillStyle = colors.darkBlue;
+                ctx.fillRect(0, 0, W, H);
+                
+                this.stars.forEach(s => s.draw());
+                
+                this.turret.draw();
+                this.bullets.forEach(b => b.draw());
+                this.rocks.forEach(r => r.draw());
+                
+                // UI stuff - scale font size based on canvas size
+                let fontSize = Math.max(16, Math.min(24, W / 35));
+                ctx.fillStyle = colors.white;
+                ctx.font = `${fontSize}px Courier New`;
+                ctx.fillText(`SCORE: ${this.score}`, 10, 30);
+                ctx.fillText(`MISSED: ${this.missed}/${this.maxMissed}`, 10, 30 + fontSize + 5);
+                
+                // timer with colors
+                let timeLeft = Math.max(0, Math.floor(this.timeLeft));
+                let timerColor = colors.white;
+                if (timeLeft <= 10) timerColor = colors.red;
+                else if (timeLeft <= 20) timerColor = colors.yellow;
+                
+                ctx.fillStyle = timerColor;
+                ctx.font = `${fontSize + 8}px Courier New`;
+                ctx.textAlign = 'center';
+                ctx.fillText(`TIME: ${timeLeft.toString().padStart(2, '0')}s`, W / 2, 40);
+                ctx.textAlign = 'left';
+                
+                // crosshair
+                ctx.strokeStyle = colors.green;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(mx - 15, my);
+                ctx.lineTo(mx + 15, my);
+                ctx.moveTo(mx, my - 15);
+                ctx.lineTo(mx, my + 15);
+                ctx.stroke();
+                
+                ctx.strokeStyle = colors.green;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(mx, my, 20, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // game over screen
+                if (this.gameOver) {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(0, 0, W, H);
+                    
+                    ctx.textAlign = 'center';
+                    
+                    let bigFont = Math.max(24, Math.min(48, W / 20));
+                    let medFont = Math.max(16, Math.min(24, W / 35));
+                    
+                    if (this.timeUp) {
+                        ctx.fillStyle = colors.yellow;
+                        ctx.font = `${bigFont}px Courier New`;
+                        ctx.fillText("TIME'S UP!", W / 2, H / 2 - 80);
+                    } else {
+                        ctx.fillStyle = colors.red;
+                        ctx.font = `${bigFont}px Courier New`;
+                        ctx.fillText("GAME OVER", W / 2, H / 2 - 80);
+                    }
+                    
+                    ctx.fillStyle = colors.white;
+                    ctx.font = `${medFont}px Courier New`;
+                    ctx.fillText(`Final Score: ${this.score}`, W / 2, H / 2 - 20);
+                    
+                    // rating system
+                    let msg = "";
+                    let msgColor = colors.white;
+                    if (this.timeUp) {
+                        if (this.score >= 200) {
+                            msg = "EXCELLENT DEFENSE!";
+                            msgColor = colors.green;
+                        } else if (this.score >= 100) {
+                            msg = "Good Job!";
+                            msgColor = colors.cyan;
+                        } else {
+                            msg = "Keep Training!";
+                            msgColor = colors.white;
+                        }
+                    } else {
+                        msg = `Survived ${60 - Math.floor(this.timeLeft)}s`;
+                        msgColor = colors.white;
+                    }
+                    
+                    ctx.fillStyle = msgColor;
+                    ctx.fillText(msg, W / 2, H / 2 + 10);
+                    
+                    ctx.fillStyle = colors.cyan;
+                    ctx.fillText("Press R to Restart", W / 2, H / 2 + 50);
+                    
+                    ctx.textAlign = 'left';
+                }
+            }
+            
+            restart() {
+                this.bullets = [];
+                this.rocks = [];
+                this.score = 0;
+                this.missed = 0;
+                this.gameOver = false;
+                this.timeUp = false;
+                this.timeLeft = 60.0;
+                this.spawnTimer = 0;
+                this.spawnDelay = 120;
+            }
+        }
+
+        // Initialize canvas size first
+        resizeCanvas();
+        
+        // start the game
+        let game = new Game();
+        
+        function loop() {
+            game.update();
+            game.draw();
+            requestAnimationFrame(loop);
+        }
+        
+        loop();
+    </script>
+</body>
+</html> 
