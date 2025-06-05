@@ -2,7 +2,7 @@
 
 **Defend Earth for 60 seconds!** A fun space shooter game you can play in your browser.
 
-## 🎮 [Play Online](https://yourusername.github.io/Asteroid-Blaster)
+## 🎮 [Play Online](https://illurianish.github.io/Asteroid_Blaster/)
 
 ## How to Play
 - **Move mouse** to aim
