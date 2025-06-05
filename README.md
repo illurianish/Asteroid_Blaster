@@ -15,13 +15,6 @@
 - **100+ points** = Good Job! 🛡️
 - **Each asteroid** = 10 points
 
-## Publish Your Own
-1. Create a [GitHub account](https://github.com)
-2. Make a new repository named `Asteroid-Blaster` (Public)
-3. Upload `index.html` file
-4. Go to Settings → Pages → Enable GitHub Pages
-5. Your game is live at `yourusername.github.io/Asteroid-Blaster`
-
 ## Features
 ✨ Starfield background  
 🎯 60-second rounds  
@@ -29,5 +22,3 @@
 🔫 Energy weapon effects  
 🪨 Rotating asteroids  
 
----
-**Made with HTML5, CSS3 & JavaScript** 🌍 
